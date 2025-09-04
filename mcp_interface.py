@@ -17,7 +17,8 @@ add_routes(
     full_graph_with_input,
     path="/g",
 )
-
+# langserve 还没有merge
+# https://github.com/langchain-ai/langserve/pull/819
 # mcp = FastApiMCP(api)
 
 # # Mount the MCP server directly to your FastAPI app
