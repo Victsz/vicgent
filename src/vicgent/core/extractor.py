@@ -1,20 +1,23 @@
 # %%
 # GOTYOU
-from langgraph.graph import StateGraph, END, START
-from langgraph.prebuilt import ToolNode
-from pydantic import BaseModel, Field
-from typing import Literal
-from langchain_core.tools import tool
-from langchain_anthropic import ChatAnthropic
-from langgraph.graph import MessagesState
-from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
-# %%
 import os
-from langchain.chat_models import init_chat_model
-from langgraph.prebuilt import create_react_agent
+from typing import Optional
 from dotenv import load_dotenv
-from langchain_core.globals import set_debug
+
+from pydantic import BaseModel
+from langchain.chat_models import init_chat_model
+from langchain_core.messages import HumanMessage, AIMessage
 from langchain_core.output_parsers import StrOutputParser
+from langchain_core.globals import set_debug
+from langchain_core.runnables import RunnableLambda
+
+from langgraph.graph import StateGraph, END, START, MessagesState
+from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
+
+from vicgent.util.file_util import load_image, save_markdown_table
+from vicgent.util.structured_output import gen_structured_output2
+
+# Environment setup
 set_debug(True)
 load_dotenv("/home/victor/workspace/my_steerings/study_langchain/src/study_langchain/playground.env")
 parser = StrOutputParser()
@@ -28,8 +31,6 @@ vllm = init_chat_model(
     # base_url=os.getenv("API_BASE"),
     temperature=0, # critical for tool calling structureoutput
     model_provider="anthropic",  # Changed from "anthropic" to "openai"
-
-
 )
 # print("Testing model connection...")
 # # response = vllm.invoke("are you ready? answer with yes or no")
@@ -55,19 +56,19 @@ tllm = init_chat_model(
 
 # print(f"Model response: {rsp_content=}")
 # %%
-from typing import Optional
 
-from langchain_core.messages import HumanMessage  , AIMessage
 # Inherit 'messages' key from MessagesState, which is a list of chat messages
 class FileResponse(BaseModel):
     name:str
     path:str
     description:str
+
 class AgentState_Safe(AgentStatePydantic):
     # Final structured response from the agent
     original_file:Optional[FileResponse] = None
     final_response: Optional[FileResponse] = None
     table_str:Optional[str] = None
+
 class AgentState(MessagesState):
     # Final structured response from the agent
     original_file:Optional[FileResponse] = None
@@ -76,8 +77,6 @@ class AgentState(MessagesState):
 # %%
 
 # Define the function that calls the model
-from util.file_util import load_image,save_markdown_table
-from util.structured_output import gen_structured_output,gen_structured_output2
 # file_path = "/home/victor/workspace/my_steerings/test_img.png"
 # in_messages = [f"帮我提取{file_path}的表格"]
 
@@ -91,8 +90,8 @@ def call_model(state: AgentState):
 
     to_get_final = state.get("original_file",None) is not None
 
-    in_messages = state["messages"]
-    user_request = in_messages[-1]
+    messages_list = state["messages"]
+    user_request = messages_list[-1]
     # input={"messages": [("human", "what's the weather in sf?")]}
 
 
@@ -118,7 +117,7 @@ def extract_table(state:AgentState):
     # return_msg:AIMessage = vllm.invoke(extract_messages)
     chain = (vllm|parser)
     table_str = chain.invoke(extract_messages)
-    breakpoint()
+    # breakpoint()  # Removed debug statement from production code
     return {"table_str":table_str}
 
 def store_table(state:AgentState):
@@ -136,43 +135,39 @@ def store_table(state:AgentState):
 
     # 创建工具字典
     tools_dict = {tool.name: tool for tool in tools}
-    for i in range(5):
+    for _ in range(5):
         try:
             save_rsp:AIMessage = tllm.bind_tools(tools=tools,tool_choice="any").invoke(save_messages)
-            def validate():
-                if not save_rsp.tool_calls:
+            
+            # Define validation function
+            def validate_tool_call(response):
+                if not response.tool_calls:
                     return False
-                if len(save_rsp.tool_calls) != 1:
+                if len(response.tool_calls) != 1:
                     return False
-                tc = save_rsp.tool_calls[0]
+                tc = response.tool_calls[0]
                 selected_tool = tc["name"]
                 if selected_tool != "save_markdown_table":
                     return False
                 return True
-            if not validate():
-                raise ValueError("")
-            # 2. 执行工具
+            
+            if not validate_tool_call(save_rsp):
+                raise ValueError("Invalid tool call")
+            
+            # Execute tool
             tc = save_rsp.tool_calls[0]
-
             selected_tool = tools_dict[tc["name"]]
             tool_msg = selected_tool.invoke(tc)
             save_messages.append(save_rsp)
             save_messages.append(tool_msg)
 
-            # final_messages = [
-            # # 让LLM知道使用什么工具很重要
-            #     {"role": "system", "content": "总结工具使用结果, 不需要进一步询问."},
-            #     save_rsp,
-            #     tool_msg,
-            #     HumanMessage(content="文件完整保存路径?")
-            # ]
-            # chain = (tllm|parser)
-            # final_msg = chain.invoke(final_messages)
             return {"messages":[HumanMessage(content=f"帮我提取路径: <{tool_msg.content}>")]}
-            break
-        except:
-            pass
-    raise Exception(f"store table failed")
+            
+        except Exception as e:
+            print(f"Tool execution attempt failed: {e}")
+            continue
+    
+    raise RuntimeError("store table failed after 5 attempts")
 # %%
 # Define the function that determines whether to continue or not
 def should_continue(state: AgentState):
@@ -205,16 +200,15 @@ workflow.add_conditional_edges(
 workflow.add_edge("extract_table", "store_table")
 workflow.add_edge("store_table", "agent")
 
-from langchain_core.runnables import RunnableLambda,RunnablePassthrough
 def create_final_reponse(state:AgentState):
 
     fr:FileResponse = state.get("final_response", None)
-    msg =  f"Failed to extract image"
+    msg = "Failed to extract image"
     table_str = state.get("table_str", None)
     if fr is not None:
-        msg= f"Table saved to {fr.path} content\n\n{table_str}"
+        msg = f"Table saved to {fr.path} content\n\n{table_str}"
     elif table_str is not None:
-        msg= f"Failed to save content\n\n{table_str}"
+        msg = f"Failed to save content\n\n{table_str}"
     return {
         "messages":[AIMessage(content=msg)]
     }
@@ -254,8 +248,8 @@ full_graph_with_input =  (
 # The graph will receive the fully-formed AgentState.
 
 if __name__ == '__main__':
-    file_path = "/home/victor/workspace/my_steerings/test_img.png"
-    in_messages = [f"帮我提取{file_path}的表格"]
+    file_path = "/home/victor/workspace/playgrounds/langchain/test_data/blood.png"
+    in_message = f"帮我提取{file_path}的表格"
 
-    g_res = graph.invoke(input={"messages":in_messages})
+    g_res = full_graph_with_input.invoke(input={"question":in_message})
     print(g_res)
