@@ -4,6 +4,16 @@ import os
 from typing import Optional
 from dotenv import load_dotenv
 
+# Load environment variables from current directory
+load_dotenv(".agent.env",override=True)
+
+antropic_base_url = os.getenv("ANTHROPIC_BASE_URL")
+api_key = os.getenv("API_KEY")
+
+os.environ['ANTHROPIC_AUTH_TOKEN'] = api_key
+print(f"ANTHROPIC_BASE_URL: {antropic_base_url}")
+
+# breakpoint()
 from pydantic import BaseModel
 from langchain.chat_models import init_chat_model
 from langchain_core.messages import HumanMessage, AIMessage
@@ -19,42 +29,42 @@ from vicgent.util.structured_output import gen_structured_output2
 
 # Environment setup
 set_debug(True)
-load_dotenv("/home/victor/workspace/my_steerings/study_langchain/src/study_langchain/playground.env")
 parser = StrOutputParser()
-MODEL = os.getenv("LLM_MODEL")
 
-MODEL = "zai-org/GLM-4.5V"
-MODEL = "Qwen/Qwen2.5-VL-72B-Instruct"
+# Debug: Check if environment variables are loaded correctly
+print(f"ANTHROPIC_BASE_URL: {os.getenv('ANTHROPIC_BASE_URL')}")
+print(f"API_KEY present: {bool(os.getenv('API_KEY'))}")
+print(f"VMODEL: {os.getenv('VMODEL')}")
+print(f"TMODEL: {os.getenv('TMODEL')}")
+# Visual model for image processing
+VMODEL = os.getenv("VMODEL", "Qwen/Qwen2.5-VL-72B-Instruct")
+# Text model for tool calling
+TMODEL = os.getenv("TMODEL", "Pro/deepseek-ai/DeepSeek-V3")
+
+# Initialize visual model for image extraction
 vllm = init_chat_model(
-    model=MODEL,
-    api_key=os.getenv("API_KEY"),
-    # base_url=os.getenv("API_BASE"),
-    temperature=0, # critical for tool calling structureoutput
-    model_provider="anthropic",  # Changed from "anthropic" to "openai"
+    model=VMODEL,
+    # load from os.environ['ANTHROPIC_AUTH_TOKEN'] 
+    base_url=os.getenv("ANTHROPIC_BASE_URL"),
+    temperature=0,  # critical for tool calling structure output
+    model_provider="anthropic",
 )
-# print("Testing model connection...")
-# # response = vllm.invoke("are you ready? answer with yes or no")
-# chain = (vllm|parser)
-# rsp_content = chain.invoke("are you ready? answer with yes or no")
-
-# print(f"Model response: {rsp_content=}")
 # %%
+# Initialize text model for tool calling
 tllm = init_chat_model(
-    # model="Pro/deepseek-ai/DeepSeek-R1",
-    model = "Pro/deepseek-ai/DeepSeek-V3",
-    # model="Pro/moonshotai/Kimi-K2-Instruct",
-    # model = "zai-org/GLM-4.5V",
-    api_key=os.getenv("API_KEY"),
-    # base_url=os.getenv("API_BASE"),
-    model_provider="anthropic",  # Changed from "anthropic" to "openai"
-    temperature = 0,
+    model=TMODEL,
+    # load from os.environ['ANTHROPIC_AUTH_TOKEN'] 
+    base_url=os.getenv("ANTHROPIC_BASE_URL"),
+    model_provider="anthropic",
+    temperature=0,
 )
-# print("Testing model connection...")
-# # response = tllm.invoke("are you ready? answer with yes or no")
-# chain = (tllm|parser)
-# rsp_content = chain.invoke("are you ready? answer with yes or no")
+print("Testing model connection...")
+# response = tllm.invoke("are you ready? answer with yes or no")
+chain = (tllm|parser)
+rsp_content = chain.invoke("are you ready? answer with yes or no")
 
-# print(f"Model response: {rsp_content=}")
+print(f"Model response: {rsp_content=}")
+# breakpoint()
 # %%
 
 # Inherit 'messages' key from MessagesState, which is a list of chat messages
@@ -201,10 +211,11 @@ workflow.add_edge("extract_table", "store_table")
 workflow.add_edge("store_table", "agent")
 
 def create_final_reponse(state:AgentState):
-
+    
     fr:FileResponse = state.get("final_response", None)
     msg = "Failed to extract image"
     table_str = state.get("table_str", None)
+    # breakpoint()
     if fr is not None:
         msg = f"Table saved to {fr.path} content\n\n{table_str}"
     elif table_str is not None:
@@ -215,7 +226,7 @@ def create_final_reponse(state:AgentState):
 
 
 graph = workflow.compile() | RunnableLambda(create_final_reponse)
-print(graph.get_graph().draw_ascii()) # uv add grandalf
+print(graph.get_graph().draw_ascii()) # uv add grandalf - requires grandalf package
 # %%
 
 # %%
@@ -240,8 +251,9 @@ initial_state_runnable = RunnableLambda(create_initial_state)
 
 full_graph_with_input =  (
     initial_state_runnable |
-    graph |
-    RunnableLambda(create_final_reponse)
+    graph 
+    # |
+    # RunnableLambda(create_final_reponse)
     ).with_types(input_type=InputDict, output_type=str)
 
 # Now, chain your initial_state_runnable with your actual graph.
