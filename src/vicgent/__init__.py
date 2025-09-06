@@ -1,0 +1,1 @@
+"""vicgent package - A Python package with interface, core, and utility layers."""

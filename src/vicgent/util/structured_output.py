@@ -1,7 +1,11 @@
 # GOTYOU
 from langchain_core.messages.base import BaseMessage
 from langchain_core.messages import ToolMessage,HumanMessage
-def gen_structured_output2(messages:list[BaseMessage],response_format,llm_tool):
+from typing import List, Type, Any, Dict
+from pydantic import BaseModel
+
+def gen_structured_output2(messages: List[BaseMessage], response_format: Type[BaseModel], llm_tool: Any) -> BaseModel:
+    messages = messages[-1:] # we only need the last message as context
     structured_response_schema = response_format
     llm_tool_ = llm_tool.bind_tools(tools=[structured_response_schema], tool_choice="any")
     hm = HumanMessage(content=f"Use the tool <{structured_response_schema.__name__}> to respond")
@@ -32,7 +36,8 @@ def gen_structured_output2(messages:list[BaseMessage],response_format,llm_tool):
             # raise ValueError(f"构建结构化响应失败: {e}") from e
     raise ValueError(" 模型调用 structured output failed")
 
-def gen_structured_output(messages:list[BaseMessage],response_format,llm_tool):
+def gen_structured_output(messages: List[BaseMessage], response_format: Type[BaseModel], llm_tool: Any) -> Dict[str, Any]:
+
     structured_response_schema = response_format
     def find_tool_result(messages, tool_name):  
         """查找特定工具的执行结果"""  

@@ -1,0 +1,35 @@
+ 
+#.pylintrc
+[MASTER]
+# 忽略的目录或文件（如第三方库）
+ignore = third_party, venv
+# 启用多进程加速（根据CPU核心数调整）
+jobs = 4
+
+[MESSAGES CONTROL]
+# 禁用非关键检查（保留错误E和警告W，关闭规范C和重构R）
+disable = C, R, W0718
+# 可额外禁用常见但不重要的警告（如缺少文档字符串）
+#disable += missing-module-docstring, missing-function-docstring
+
+[FORMAT]
+# 最大行长度（默认80，可放宽至120）
+max-line-length = 120
+# 缩进使用4个空格
+indent-string = '    '
+
+[BASIC]
+# 允许的变量名格式（支持短变量名如i,j）
+good-names = i, j, k, v, x, y
+# 允许类名不使用驼峰式（如MyClass）
+class-naming-style = any
+
+[DESIGN]
+# 函数参数数量上限（默认5，可放宽）
+max-args = 7
+# 函数复杂度控制（默认50，可调整）
+max-locals = 15
+
+[REPORTS]
+# 关闭统计报告（仅显示问题）
+reports = no
