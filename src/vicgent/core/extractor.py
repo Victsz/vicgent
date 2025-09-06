@@ -5,7 +5,7 @@ from typing import Optional
 from dotenv import load_dotenv
 
 # Load environment variables from current directory
-load_dotenv(".agent.env",override=True)
+load_dotenv(".agent.env",override=False)
 
 antropic_base_url = os.getenv("ANTHROPIC_BASE_URL")
 api_key = os.getenv("API_KEY")
@@ -132,10 +132,11 @@ def extract_table(state:AgentState):
 
 def store_table(state:AgentState):
     table_str = state["table_str"]
-
+    state_safe = AgentState_Safe.model_validate(state)
+    org_name = state_safe.original_file.name
     save_messages = [
         # 让LLM知道使用什么工具很重要
-        {"role": "system", "content": "你负责使用工具save_markdown_table保存markdown表格文件, 只需要保存markdown源码, 并基于内容补充标题.同时以标题作为文件名"},
+        {"role": "system", "content": f"你负责使用工具save_markdown_table保存markdown表格文件, 只需要保存markdown源码, 并基于**{org_name=}**补充标题. 特殊情况: 如果org_name意义不明, 结合表格内容生成标题. 同时以标题作为<文件名>"},
     ]
     tbl_msg = HumanMessage(content=f"请保存下面的表格\n\n{table_str}")
     save_messages.append(tbl_msg)
@@ -254,7 +255,7 @@ full_graph_with_input =  (
     graph 
     # |
     # RunnableLambda(create_final_reponse)
-    ).with_types(input_type=InputDict, output_type=str)
+    ).with_types(input_type=InputDict, output_type=AgentState)
 
 # Now, chain your initial_state_runnable with your actual graph.
 # The graph will receive the fully-formed AgentState.
