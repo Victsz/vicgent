@@ -25,7 +25,7 @@ from langgraph.graph import StateGraph, END, START, MessagesState
 from langgraph.prebuilt.chat_agent_executor import AgentStatePydantic
 
 from vicgent.util.file_util import load_image, save_markdown_table
-from vicgent.util.structured_output import gen_structured_output2
+from vicgent.util.structured_output import make_structured_output
 
 # Environment setup
 set_debug(True)
@@ -107,7 +107,7 @@ def call_model(state: AgentState):
 
     messages.append(HumanMessage(content=user_request.content))
     # breakpoint()
-    file_rsp:FileResponse = gen_structured_output2(messages=messages,response_format= FileResponse,llm_tool=tllm)
+    file_rsp:FileResponse = make_structured_output(messages=messages,response_format= FileResponse,llm_tool=tllm)
     # Return only the state keys you want to update
     if to_get_final:
         return {"final_response":file_rsp}

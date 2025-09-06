@@ -7,19 +7,24 @@ Supervisor Agent - 管理多个专门化的agent
 使用官方推荐的节点包装方案解决 ParentCommand 错误
 """
 
-from typing import Annotated
-from langchain_core.tools import tool, InjectedToolCallId
-from langgraph.prebuilt import InjectedState, create_react_agent
-from langgraph.graph import StateGraph, START, END, MessagesState
-from langchain.chat_models import init_chat_model
-from langchain_core.messages import HumanMessage
-from pydantic import BaseModel, Field
 import os
+import re
 from dotenv import load_dotenv
-from enum import Enum
-load_dotenv("/home/victor/workspace/playgrounds/langchain/.agent.env",override=True)
+from langchain_core.messages import AIMessage, HumanMessage
+from langgraph.graph import END, START, MessagesState, StateGraph
+from pydantic import BaseModel, Field
+
+from vicgent.core.extractor import AgentState_Safe, graph as table_extractor_agent
 from vicgent.util.LLMUtil import create_model_anthropic
+from vicgent.util.agent_selector import (
+    HandlerAgent,
+    SubAgent,
+    create_agent_selector_factory,
+)
+from vicgent.util.structured_output import make_structured_output
+
 # Load environment
+load_dotenv("/home/victor/workspace/playgrounds/langchain/.agent.env", override=True)
 
 
 # 定义任务完成判断的结构化输出
@@ -27,9 +32,6 @@ class CompareResult(BaseModel):
     """任务完成判断结果"""
     completed: bool = Field(description="任务是否已完成，True表示完成，False表示未完成")
     why_no_message: str = Field(description="如果未完成，说明原因和需要改进的地方", default="")
-
-# Import agent selector factory instead of defining locally
-from ..util.agent_selector import SubAgent, HandlerAgent, create_agent_selector_factory
 
 # 扩展的Supervisor状态，包含agent选择信息
 class SupervisorState(MessagesState):
@@ -40,7 +42,6 @@ def create_supervisor():
     """创建supervisor系统 - 使用官方推荐的节点包装方案"""
 
     # 导入table extractor agent和状态类型
-    from vicgent.core.extractor import graph as table_extractor_agent, AgentState_Safe
 
     # 初始化LLM
     llm = create_model_anthropic(model_name=os.getenv("TMODEL"),
@@ -51,7 +52,7 @@ def create_supervisor():
     
     def agent_selection_node(state: SupervisorState):
         """Agent选择节点 - 使用factory模式自动选择agent"""
-        breakpoint()
+        # breakpoint()
         if not state["messages"]:
             return {"handler_agent": HandlerAgent(sub_agent=SubAgent.NOTSET)}
         
@@ -62,7 +63,7 @@ def create_supervisor():
             
             # 使用factory选择agent
             selected_agent = agent_selector.invoke(task_description)
-            breakpoint()
+            # breakpoint()
             return {"handler_agent": selected_agent}
         
         return {"handler_agent": HandlerAgent(sub_agent=SubAgent.NOTSET)}
@@ -78,7 +79,6 @@ def create_supervisor():
                 # 简单的文件路径提取逻辑
                 if '.png' in content or '.jpg' in content or '.jpeg' in content:
                     # 提取路径
-                    import re
                     path_match = re.search(r'[^\s]+\.(png|jpg|jpeg)', content)
                     if path_match:
                         return path_match.group(0)
@@ -86,7 +86,7 @@ def create_supervisor():
 
     def should_route_to_agent(state: SupervisorState):
         """基于handler_agent选择路由到合适的agent"""
-        breakpoint()
+        # breakpoint()
         handler_agent = state.get("handler_agent")
         
         if handler_agent and handler_agent.sub_agent == SubAgent.table_extractor_agent:
@@ -99,7 +99,7 @@ def create_supervisor():
     # 🎯 关键：包装函数直接调用子图
     def call_table_extractor(state: SupervisorState):
         """包装函数：直接调用table_extractor子图"""
-        breakpoint()
+        # breakpoint()
         # 提取文件路径
         file_path = extract_file_path_from_messages(state["messages"])
         message_content = f"帮我提取{file_path}的表格" if file_path else "请处理表格提取任务"
@@ -128,7 +128,6 @@ def create_supervisor():
         
         if last_message and hasattr(last_message, 'content'):
             # 简单回应
-            from langchain_core.messages import AIMessage
             response = AIMessage(content=f"收到您的聊天请求: {last_message.content}")
             return {
                 "messages": state["messages"] + [response],
@@ -159,8 +158,6 @@ def create_supervisor():
 
         # 使用LLM进行智能判断
         try:
-            from ..util.structured_output import gen_structured_output2
-
             judge_messages = [
                 HumanMessage(content=f"""你是负责比对任务完成结果的专家。
 
@@ -171,7 +168,7 @@ Sub-agent的最后返回：{last_message.content}
 请判断sub-agent的返回是否完成了用户的原始需求。如果没有完成，请说明原因和需要改进的地方。""")
             ]
 
-            result: CompareResult = gen_structured_output2(
+            result: CompareResult = make_structured_output(
                 messages=judge_messages,
                 response_format=CompareResult,
                 llm_tool=llm

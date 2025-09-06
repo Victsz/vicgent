@@ -4,13 +4,18 @@ Agent Selector utility with factory pattern using langgraph's RunnableLambda.
 Provides a factory function to create agent selector runnables.
 """
 
+import os
 from enum import Enum
-from pydantic import BaseModel, Field
-from typing import Optional, Any, Callable
-from langchain_core.messages import HumanMessage
+from typing import Optional, Any, Callable, TypedDict, List
+
+from dotenv import load_dotenv
+from langchain_core.messages import BaseMessage, HumanMessage
 from langchain_core.runnables import RunnableLambda
 from langgraph.graph import StateGraph, END
-from langgraph.prebuilt import ToolNode
+from pydantic import BaseModel, Field
+
+from vicgent.util.LLMUtil import create_model_anthropic
+from vicgent.util.structured_output import make_structured_output
 
 # Define the same SubAgent enum as in supervisor.py
 class SubAgent(str, Enum):
@@ -67,8 +72,7 @@ def create_agent_selector_factory(llm: Any) -> Callable:
             messages.append(rsp)
             
             # 2. Generate structured output using the utility function
-            from .structured_output import gen_structured_output2
-            result = gen_structured_output2(
+            result = make_structured_output(
                 messages=messages,
                 response_format=HandlerAgent,
                 llm_tool=llm
@@ -98,8 +102,6 @@ def create_agent_selector_graph_factory(llm: Any) -> StateGraph:
     agent_selector = create_agent_selector_factory(llm)
     
     # Define state type for the graph
-    from typing import TypedDict, List
-    from langchain_core.messages import BaseMessage
     
     class AgentSelectionState(TypedDict):
         task_description: str
@@ -135,9 +137,6 @@ def get_agent_selector(llm: Any = None) -> Callable:
         Callable: Agent selector runnable function
     """
     if llm is None:
-        from .LLMUtil import create_model_anthropic
-        import os
-        from dotenv import load_dotenv
         load_dotenv("/home/victor/workspace/playgrounds/langchain/.agent.env", override=True)
         llm = create_model_anthropic(
             model_name=os.getenv("TMODEL", "Pro/deepseek-ai/DeepSeek-V3"),
