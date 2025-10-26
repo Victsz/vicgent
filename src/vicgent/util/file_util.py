@@ -3,14 +3,16 @@ import base64
 from pathlib import Path
 from langchain_core.tools import tool
 import os
-def load_image(filename: str) -> str:
+def load_image(filename: str, table = True) -> str:
     local_img = Path(filename)
     image_data = base64.b64encode(local_img.read_bytes()).decode("utf-8")
-
+    prompt = "Extract the table/s from this image output as markdown."
+    if not table:
+        prompt = "请帮忙提取图片"
     content =  [
             {
                 "type": "text",
-                "text": "Extract the table from this image output as markdown table.",
+                "text": prompt,
             },
             {
                 "type": "image",

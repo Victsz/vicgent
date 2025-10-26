@@ -3,7 +3,9 @@ from langchain_core.messages.base import BaseMessage
 from langchain_core.messages import ToolMessage,HumanMessage
 from typing import List, Type, Any, Dict
 from pydantic import BaseModel
+import logging
 
+logging.basicConfig(level=logging.INFO)
 def make_structured_output(messages: List[BaseMessage], response_format: Type[BaseModel], llm_tool: Any) -> BaseModel:
     """
     使用LLM工具从消息历史中生成结构化输出。
@@ -49,9 +51,9 @@ def make_structured_output(messages: List[BaseMessage], response_format: Type[Ba
             return structured_data#{"structured_response": structured_data}
         except Exception as e:
             print(f"构建结构化响应失败 {i=}: {e}")
-            
+            logging.info(f"{structured_response_schema.__name__} 构建结构化响应失败 {i=}: {e}")
             # raise ValueError(f"构建结构化响应失败: {e}") from e
-    raise ValueError(" 模型调用 structured output failed")
+    raise ValueError(f"模型调用 structured output failed expected {structured_response_schema.__name__}")
 
 def gen_structured_output(messages: List[BaseMessage], response_format: Type[BaseModel], llm_tool: Any) -> Dict[str, Any]:
 
@@ -88,6 +90,6 @@ def gen_structured_output(messages: List[BaseMessage], response_format: Type[Bas
             return {"structured_response": structured_data}
         except Exception as e:
             print(f"构建结构化响应失败 {i=}: {e}")
+            logging.info(f"{structured_response_schema.__name__} 构建结构化响应失败 {i=}: {e}")
             # raise ValueError(f"构建结构化响应失败: {e}") from e
-    raise ValueError(" 模型调用 structured output failed")
-# %%
+    raise ValueError(f"模型调用 structured output failed expected {structured_response_schema.__name__}")# %%
