@@ -188,7 +188,7 @@ def store_table(state:AgentState):
         # 让LLM知道使用什么工具很重要
         {"role": "system", "content": f"你负责使用工具save_markdown_table保存markdown<表格>文件. 如果<没有表格>, 你需要提取关键信息通常为['时间','指标名称','比率', '绝对数', '说明'],<整理>出一份<表格>. 然后保存<表格>的<markdown源码>, 并基于**{org_name=}**补充标题. 特殊情况: 如果org_name意义不明, 结合表格内容生成标题. 同时以标题作为<文件名>"},
     ]
-    tbl_msg = HumanMessage(content=f"请保存下面的表格\n\n{table_str}")
+    tbl_msg = HumanMessage(content=f"请保存下面的表格\n<表格>\n{table_str}\n<\表格>")
     save_messages.append(tbl_msg)
 
 
