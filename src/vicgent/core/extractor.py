@@ -17,6 +17,7 @@ log_method = lambda x: logging.info(x) if len(logging.getLogger().handlers) > 0 
 os.environ['ANTHROPIC_AUTH_TOKEN'] = api_key
 log_method(f"ANTHROPIC_BASE_URL: {antropic_base_url}")
 
+# breakpoint()  # Commented out for demo
 # breakpoint()
 from pydantic import BaseModel
 from langchain.chat_models import init_chat_model
@@ -270,6 +271,10 @@ def create_final_reponse(state:AgentState):
         "messages":[AIMessage(content=msg)]
     }
 
+def create_final_reponse_safe(state:AgentState):
+    
+    state_safe = AgentState_Safe.model_validate(state)
+    return state_safe
 
 graph = workflow.compile() | RunnableLambda(create_final_reponse)
 log_method(graph.get_graph().draw_ascii()) # uv add grandalf - requires grandalf package
@@ -284,7 +289,7 @@ def create_initial_state(input_dict: InputDict) -> AgentState:
     """Transforms a simple input dict into the initial AgentState."""
     # breakpoint()
     return {
-        "messages":[HumanMessage(content=input_dict.get("question", ""))]
+        "messages":[HumanMessage(content=input_dict.question)]
     }
 
 # Use RunnableLambda to create a runnable that initializes the state.
