@@ -13,6 +13,9 @@ from pathlib import Path
 # project_root = Path(__file__).parent.parent.parent.parent
 # sys.path.insert(0, str(project_root))
 
+from dotenv import load_dotenv
+env_file = "/home/victor/workspace_local/agent_services/.agent.env"
+load_dotenv(env_file,override=True,verbose=True)
 from vicgent.core.extractor import (
     workflow, AgentState, InputDict, create_initial_state, create_final_reponse,create_final_reponse_safe,
     RunnableLambda
