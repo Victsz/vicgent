@@ -5,6 +5,7 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.11"
 dependencies = [
+    "claude-agent-sdk>=0.1.35",
     "fastapi>=0.116.1",
     "fastapi-mcp>=0.4.0",
     "grandalf>=0.8",
@@ -29,6 +30,9 @@ dev = [
 [build-system]
 requires = ["hatchling>=1.18.0"]
 build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/vicgent", "src/vflows"]
 
 [tool.uv.sources]
 vicgent = { workspace = true }

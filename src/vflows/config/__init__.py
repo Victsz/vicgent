@@ -1,0 +1,47 @@
+"""配置包 - Claude API 和应用设置。"""
+
+from .settings import get_model_id, get_api_key, get_agent_timeout_seconds
+from .agent_configs import (
+    AgentConfig,
+    COMPANY_PROFILER,
+    MARKET_RESEARCHER,
+    COMPETITOR_SCOUT,
+    TEAM_INVESTIGATOR,
+    NEWS_MONITOR,
+    FINANCIAL_ANALYST,
+    RISK_ASSESSOR,
+    TECH_EVALUATOR,
+    LEGAL_REVIEWER,
+    REPORT_GENERATOR,
+    DECISION_AGENT,
+    RESEARCH_AGENTS,
+    ANALYSIS_AGENTS,
+    SYNTHESIS_AGENTS,
+    ALL_AGENTS,
+    get_agent_by_name,
+    get_agent_configs,
+)
+
+__all__ = [
+    "get_model_id",
+    "get_api_key",
+    "get_agent_timeout_seconds",
+    "AgentConfig",
+    "COMPANY_PROFILER",
+    "MARKET_RESEARCHER",
+    "COMPETITOR_SCOUT",
+    "TEAM_INVESTIGATOR",
+    "NEWS_MONITOR",
+    "FINANCIAL_ANALYST",
+    "RISK_ASSESSOR",
+    "TECH_EVALUATOR",
+    "LEGAL_REVIEWER",
+    "REPORT_GENERATOR",
+    "DECISION_AGENT",
+    "RESEARCH_AGENTS",
+    "ANALYSIS_AGENTS",
+    "SYNTHESIS_AGENTS",
+    "ALL_AGENTS",
+    "get_agent_by_name",
+    "get_agent_configs",
+]
